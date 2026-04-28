@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Reconciliation Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f6f8;
+    --white: #ffffff;
+    --border: #e4e7ec;
+    --text: #101828;
+    --text-secondary: #667085;
+    --accent: #2563eb;
+    --accent-light: #eff4ff;
+    --success: #12b76a;
+    --success-light: #ecfdf3;
+    --warning: #f79009;
+    --warning-light: #fffaeb;
+    --error: #f04438;
+    --error-light: #fef3f2;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(16,24,40,0.1), 0 1px 2px rgba(16,24,40,0.06);
+    --shadow-md: 0 4px 8px -2px rgba(16,24,40,0.1), 0 2px 4px -2px rgba(16,24,40,0.06);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* Top nav */
+  .nav {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+  }
+
+  .nav-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .nav-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .nav-badge {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Layout */
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Info banner */
+  .banner {
+    background: var(--accent-light);
+    border: 1px solid #c7d7fd;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    color: #1d4ed8;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  .banner-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .card-header-text h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .card-header-text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .card-body {
+    padding: 20px 24px;
+  }
+
+  /* Upload zones */
+  .upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 600px) {
+    .upload-grid { grid-template-columns: 1fr; }
+  }
+
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .upload-zone.has-file {
+    border-style: solid;
+    border-color: var(--success);
+    background: var(--success-light);
+  }
+
+  .upload-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .has-file .upload-icon {
+    background: var(--success-light);
+    border-color: var(--success);
+  }
+
+  .upload-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: absolute;
+    top: 12px;
+    left: 16px;
+  }
+
+  .upload-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-top: 4px;
+  }
+
+  .upload-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--success);
+    word-break: break-all;
+  }
+
+  .file-size {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .upload-zone input[type="file"] { display: none; }
+
+  /* Context textarea */
+  .context-textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    color: var(--text);
+    resize: vertical;
+    min-height: 88px;
+    background: var(--bg);
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+
+  .context-textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--white);
+  }
+
+  .context-textarea::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .preset-chip {
+    background: var(--white);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .preset-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  /* Run button */
+  .run-btn {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .run-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px -4px rgba(37,99,235,0.4);
+  }
+
+  .run-btn:disabled {
+    background: var(--border);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .reset-btn {
+    width: 100%;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .reset-btn:hover {
+    color: var(--text);
+    border-color: var(--text-secondary);
+  }
+
+  /* Status log */
+  .status-panel {
+    display: none;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .status-panel.active { display: block; }
+
+  .status-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .status-dot.done { background: var(--success); animation: none; }
+
+  .status-body {
+    padding: 16px 20px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    opacity: 0;
+    animation: slideIn 0.3s forwards;
+  }
+
+  .status-line.done { color: var(--text); }
+  .status-line.error { color: var(--error); }
+
+  .status-line-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .status-line.done .status-line-dot { background: var(--success); }
+  .status-line.error .status-line-dot { background: var(--error); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Results */
+  .results { display: none; }
+  .results.active { display: block; }
+
+  /* Match rate hero */
+  .hero-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .hero-rate {
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .hero-rate.success { color: var(--success); }
+  .hero-rate.warning { color: var(--warning); }
+  .hero-rate.error { color: var(--error); }
+
+  .hero-rate .pct {
+    font-size: 0.45em;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .hero-divider {
+    width: 1px;
+    height: 80px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  .hero-text h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .hero-text p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 600px) {
+    .hero-card { flex-direction: column; gap: 20px; align-items: flex-start; }
+    .hero-divider { width: 100%; height: 1px; }
+    .hero-rate { font-size: 56px; }
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .stat-card.matching .stat-value { color: var(--success); }
+  .stat-card.s1 .stat-value { color: var(--warning); }
+  .stat-card.s2 .stat-value { color: #9333ea; }
+
+  /* Progress bar */
+  .breakdown-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .breakdown-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .bar {
+    display: flex;
+    height: 10px;
+    border-radius: 100px;
+    overflow: hidden;
+    background: var(--border);
+    margin-bottom: 14px;
+  }
+
+  .bar-segment {
+    height: 100%;
+    transition: width 0.6s ease;
+  }
+
+  .bar-segment.matching { background: var(--success); }
+  .bar-segment.s1 { background: var(--warning); }
+  .bar-segment.s2 { background: #9333ea; }
+
+  .bar-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-dot.matching { background: var(--success); }
+  .legend-dot.s1 { background: var(--warning); }
+  .legend-dot.s2 { background: #9333ea; }
+
+  /* Tabs */
+  .tabs-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .tabs-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-btn .count {
+    background: var(--bg);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  .tab-btn.active .count { background: var(--accent-light); color: var(--accent); }
+  .tab-btn.matching.active .count { background: var(--success-light); color: var(--success); }
+  .tab-btn.s1.active .count { background: var(--warning-light); color: var(--warning); }
+  .tab-btn.s2.active .count { background: #faf5ff; color: #9333ea; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    text-align: left;
+    padding: 11px 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: var(--bg); }
+
+  .td-name { font-weight: 500; }
+  .td-group { color: var(--text-secondary); }
+  .td-exam { color: var(--text-secondary); font-size: 12px; max-width: 200px; }
+
+  .empty-cell {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+
+  .table-footer {
+    padding: 12px 20px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
+  /* Insight */
+  .insight-card {
+    background: var(--accent-light);
+    border: 1px solid #c7d7fd;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    font-size: 13.5px;
+    color: #1d4ed8;
+    line-height: 1.6;
+    display: none;
+  }
+
+  .insight-card.active { display: flex; gap: 12px; }
+
+  .insight-card code {
+    background: rgba(37,99,235,0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+  }
+
+  /* Error */
+  .error-banner {
+    background: var(--error-light);
+    border: 1px solid #fda29b;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    color: #b42318;
+    font-size: 13px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .error-banner.active { display: block; }
+
+  /* Spinner */
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-icon">⇄</div>
+    <div>
+      <div class="nav-title">Data Reconciliation Agent</div>
+      <div class="nav-sub">Column mapping & source verification</div>
+    </div>
+  </div>
+  <div class="nav-badge">Powered by Claude</div>
+</nav>
+
+<div class="page">
+
+  <div class="banner">
+    <span class="banner-icon">ℹ</span>
+    <span>Upload two Excel files and the agent will cross-check them — fixing encoding errors, normalising accents, detecting wide vs long format, and reporting what matched and what didn't.</span>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-num">1</div>
+      <div class="card-header-text">
+        <h3>Upload Files</h3>
+        <p>Upload the two datasets you want to compare</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="upload-grid">
+
+        <label class="upload-zone" id="zone1">
+          <span class="upload-label">File A</span>
+          <div class="upload-icon" id="icon1">📂</div>
+          <div class="upload-title" id="title1">Drop file here</div>
+          <div class="upload-hint" id="hint1">or click to browse · .xlsx</div>
+          <input type="file" id="file1" accept=".xlsx,.xls">
+        </label>
+
+        <label class="upload-zone" id="zone2">
+          <span class="upload-label">File B</span>
+          <div class="upload-icon" id="icon2">📂</div>
+          <div class="upload-title" id="title2">Drop file here</div>
+          <div class="upload-hint" id="hint2">or click to browse · .xlsx</div>
+          <input type="file" id="file2" accept=".xlsx,.xls">
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Context -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-num">2</div>
+      <div class="card-header-text">
+        <h3>Context <span style="color:var(--text-secondary);font-weight:400">(optional)</span></h3>
+        <p>Tell the agent anything special about your data</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <textarea class="context-textarea" id="contextPrompt" placeholder="e.g. 'File A contains all programs (MIR, FIR, EIR), File B only has MIR — filter to match scope' or 'Names may have trailing spaces'"></textarea>
+      <div class="preset-row">
+        <button class="preset-chip" data-preset="programs">Filter to one program</button>
+        <button class="preset-chip" data-preset="trailing">Trailing whitespace</button>
+        <button class="preset-chip" data-preset="strict">Strict accent matching</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Run -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-num">3</div>
+      <div class="card-header-text">
+        <h3>Run Reconciliation</h3>
+        <p>The agent will process and compare both files</p>
+      </div>
+    </div>
+    <div class="card-body">
+      <button class="run-btn" id="runBtn" disabled>
+        <span id="runText">Run Reconciliation</span>
+      </button>
+      <button class="reset-btn" id="resetBtn">Reset & Start Over</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- Status -->
+  <div class="status-panel" id="statusPanel">
+    <div class="status-header">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusTitle">Processing…</span>
+    </div>
+    <div class="status-body" id="statusBody"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <!-- Hero -->
+    <div class="hero-card">
+      <div class="hero-rate" id="heroRate">—<span class="pct">%</span></div>
+      <div class="hero-divider"></div>
+      <div class="hero-text">
+        <h2 id="heroTitle">—</h2>
+        <p id="heroDesc">—</p>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card matching">
+        <div class="stat-label">Matching</div>
+        <div class="stat-value" id="statMatch">—</div>
+        <div class="stat-sub">rows in both</div>
+      </div>
+      <div class="stat-card s1">
+        <div class="stat-label" id="statS1Label">File A Only</div>
+        <div class="stat-value" id="statS1">—</div>
+        <div class="stat-sub">unique rows</div>
+      </div>
+      <div class="stat-card s2">
+        <div class="stat-label" id="statS2Label">File B Only</div>
+        <div class="stat-value" id="statS2">—</div>
+        <div class="stat-sub">unique rows</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub">analyzed</div>
+      </div>
+    </div>
+
+    <!-- Breakdown bar -->
+    <div class="breakdown-card">
+      <div class="breakdown-title">Breakdown</div>
+      <div class="bar">
+        <div class="bar-segment matching" id="barMatch" style="width:0%"></div>
+        <div class="bar-segment s1" id="barS1" style="width:0%"></div>
+        <div class="bar-segment s2" id="barS2" style="width:0%"></div>
+      </div>
+      <div class="bar-legend">
+        <div class="legend-item"><div class="legend-dot matching"></div><span id="legendMatch">Matching · 0%</span></div>
+        <div class="legend-item"><div class="legend-dot s1"></div><span id="legendS1">File A Only · 0%</span></div>
+        <div class="legend-item"><div class="legend-dot s2"></div><span id="legendS2">File B Only · 0%</span></div>
+      </div>
+    </div>
+
+    <!-- Insight -->
+    <div class="insight-card" id="insightCard">
+      <span>ℹ</span>
+      <span id="insightText"></span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-card">
+      <div class="tabs-nav">
+        <button class="tab-btn active" data-tab="matching">
+          What Matched <span class="count matching" id="badgeMatch">0</span>
+        </button>
+        <button class="tab-btn s1" data-tab="s1">
+          <span id="tabS1Label">File A Only</span> <span class="count s1" id="badgeS1">0</span>
+        </button>
+        <button class="tab-btn s2" data-tab="s2">
+          <span id="tabS2Label">File B Only</span> <span class="count s2" id="badgeS2">0</span>
+        </button>
+      </div>
+
+      <div class="tab-content active" id="tabMatching">
+        <table>
+          <thead><tr><th>Student</th><th>Group</th><th>Exam</th></tr></thead>
+          <tbody id="bodyMatching"></tbody>
+        </table>
+        <div class="table-footer" id="footerMatching"></div>
+      </div>
+
+      <div class="tab-content" id="tabS1">
+        <table>
+          <thead><tr><th>Student</th><th>Group</th><th>Exam</th></tr></thead>
+          <tbody id="bodyS1"></tbody>
+        </table>
+        <div class="table-footer" id="footerS1"></div>
+      </div>
+
+      <div class="tab-content" id="tabS2">
+        <table>
+          <thead><tr><th>Student</th><th>Group</th><th>Exam</th></tr></thead>
+          <tbody id="bodyS2"></tbody>
+        </table>
+        <div class="table-footer" id="footerS2"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+let file1Buffer = null, file1Name = '', file1Size = 0;
+let file2Buffer = null, file2Name = '', file2Size = 0;
+
+const MOJIBAKE = [
+  ['Ã¡','á'],['Ã©','é'],['Ã­','í'],['Ã³','ó'],['Ã¹','ú'],['Ã±','ñ'],
+  ['Ã‰','É'],['Ã"','Ó'],['Ã','Á'],['Â','']
+];
+
+function fixMojibake(s) {
+  if (!s) return '';
+  for (const [a,b] of MOJIBAKE) if (s.indexOf(a) !== -1) s = s.split(a).join(b);
+  return s;
+}
+
+const ACCENT = /[\u0300-\u036f]/g;
+
+function norm(text, strict) {
+  if (!text) return '';
+  let s = fixMojibake(String(text));
+  if (!strict) s = s.normalize('NFD').replace(ACCENT,'');
+  return s.toUpperCase().replace(/ª/g,'A').replace(/º/g,'O').replace(/\s+/g,' ').trim();
+}
+
+function fmt(n) { return n.toLocaleString('en-US'); }
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+function yield_() { return new Promise(r=>setTimeout(r,0)); }
+
+// Upload setup
+function setupZone(zoneId, inputId, slot) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById('icon'+slot);
+  const title = document.getElementById('title'+slot);
+  const hint = document.getElementById('hint'+slot);
+
+  input.addEventListener('change', e => {
+    if (e.target.files[0]) load(e.target.files[0], slot, zone, icon, title, hint);
+  });
+
+  ['dragover','dragenter'].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.classList.add('dragover');
+  }));
+  ['dragleave','dragend'].forEach(ev => zone.addEventListener(ev, () => zone.classList.remove('dragover')));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0], slot, zone, icon, title, hint);
+  });
+}
+
+function load(file, slot, zone, icon, title, hint) {
+  zone.classList.add('has-file');
+  title.innerHTML = `<span class="file-name">${esc(file.name)}</span>`;
+  hint.innerHTML = `<span class="file-size">${(file.size/1024).toFixed(1)} kb · ready</span>`;
+  icon.textContent = '✅';
+
+  const r = new FileReader();
+  r.onload = e => {
+    if (slot===1) { file1Buffer=e.target.result; file1Name=file.name; file1Size=file.size; }
+    else { file2Buffer=e.target.result; file2Name=file.name; file2Size=file.size; }
+    checkReady();
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function checkReady() {
+  document.getElementById('runBtn').disabled = !(file1Buffer && file2Buffer);
+}
+
+setupZone('zone1','file1',1);
+setupZone('zone2','file2',2);
+
+// Presets
+const PRESETS = {
+  programs: 'One file contains multiple programs (MIR, FIR, EIR, etc.) while the other contains only one. Filter to match scope before comparing.',
+  trailing: 'Names and group fields may have trailing or extra whitespace. Treat as equal after cleanup.',
+  strict: 'Treat accented characters as distinct (é ≠ e). Only match on exact character sequence.'
+};
+
+document.querySelectorAll('.preset-chip').forEach(c => {
+  c.addEventListener('click', () => {
+    const ta = document.getElementById('contextPrompt');
+    const txt = PRESETS[c.dataset.preset];
+    ta.value = ta.value.trim() ? ta.value.trim() + '\n\n' + txt : txt;
+  });
+});
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active');
+  });
+});
+
+// Status
+function addLine(text, done, error) {
+  const body = document.getElementById('statusBody');
+  const div = document.createElement('div');
+  div.className = 'status-line' + (done?' done':'') + (error?' error':'');
+  div.innerHTML = `<div class="status-line-dot"></div><span>${text}</span>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return div;
+}
+
+function markDone(el) { if(el) el.classList.add('done'); }
+
+// Detect format
+function detect(data) {
+  if (!data || data.length < 2) return { format:'unknown' };
+  const h = data[0] || [];
+  let sc=-1, gc=-1, ec=-1, pc=-1;
+  h.forEach((v,i) => {
+    const hh = String(v||'').toLowerCase().trim();
+    if(hh==='student_name') sc=i;
+    if(hh==='group_name') gc=i;
+    if(hh==='mock_exam') ec=i;
+    if(hh==='program_name') pc=i;
+  });
+  if(sc>=0&&gc>=0&&ec>=0) return { format:'long', sc, gc, ec, pc };
+  const s = String(data[1]&&data[1][0]||'');
+  if(s.indexOf(' | ')!==-1) {
+    const cols = [];
+    for(let i=1;i<h.length;i++) { const n=String(h[i]||'').trim(); if(n) cols.push({name:n,idx:i}); }
+    return { format:'wide', cols };
+  }
+  return { format:'unknown' };
+}
+
+// Extract
+async function extract(data, struct, strictAccents, programFilter, onProgress) {
+  const seen = new Set();
+  const samples = [];
+  let count = 0;
+
+  if (struct.format === 'long') {
+    const total = data.length;
+    for (let i=1;i<total;i++) {
+      const row = data[i]; if(!row) continue;
+      if(programFilter && struct.pc>=0) {
+        if(String(row[struct.pc]||'').toUpperCase().indexOf(programFilter)===-1) continue;
+      }
+      const s=row[struct.sc], g=row[struct.gc], e=row[struct.ec];
+      if(s&&g&&e) {
+        const key = norm(s,strictAccents)+'||'+norm(g,strictAccents)+'||'+norm(String(e),strictAccents);
+        if(!seen.has(key)) {
+          seen.add(key); count++;
+          if(samples.length<500) samples.push({key,student:String(s).trim(),group:String(g).trim(),exam:String(e).trim()});
+        }
+      }
+      if(i%2000===0) { onProgress&&onProgress(i,total); await yield_(); }
+    }
+    onProgress&&onProgress(total,total);
+
+  } else if (struct.format === 'wide') {
+    let start=1;
+    const fdr = String(data[1]&&data[1][0]||'');
+    if(fdr.toLowerCase().indexOf('student name')!==-1&&fdr.indexOf('|')!==-1) start=2;
+    const total=data.length, cols=struct.cols, clen=cols.length;
+    for(let i=start;i<total;i++) {
+      const row=data[i]; if(!row||!row[0]) continue;
+      const fc=String(row[0]), pi=fc.indexOf(' | ');
+      if(pi===-1) continue;
+      const student=fc.substring(0,pi).trim();
+      const rest=fc.substring(pi+3), np=rest.indexOf(' | ');
+      const group=(np===-1?rest:rest.substring(0,np)).trim();
+      if(!student||!group) continue;
+      const sn=norm(student,strictAccents), gn=norm(group,strictAccents);
+      for(let j=0;j<clen;j++) {
+        const col=cols[j], val=row[col.idx];
+        if(val!==null&&val!==undefined&&val!=='') {
+          const ce=col.name.replace(/\.[12]$/,'').trim().replace(/\s+/g,' ');
+          const key=sn+'||'+gn+'||'+norm(ce,strictAccents);
+          if(!seen.has(key)) {
+            seen.add(key); count++;
+            if(samples.length<500) samples.push({key,student,group,exam:ce});
+          }
+        }
+      }
+      if(i%100===0) { onProgress&&onProgress(i,total); await yield_(); }
+    }
+    onProgress&&onProgress(total,total);
+  }
+
+  return { keySet:seen, samples, count };
+}
+
+// Interpret context
+function interpretCtx(text) {
+  const opts = { strict:false, filter:null, notes:[] };
+  if(!text||!text.trim()) return opts;
+  const lo = text.toLowerCase();
+  if(lo.indexOf('strict')!==-1&&lo.indexOf('accent')!==-1) { opts.strict=true; opts.notes.push('Strict accent matching on'); }
+  for(const p of ['MIR','FIR','EIR','PIR','E100','P100']) {
+    if(new RegExp('only\\s+(?:has\\s+|contains\\s+)?'+p,'i').test(text)) { opts.filter=p; opts.notes.push('Filtering File A to '+p); break; }
+  }
+  return opts;
+}
+
+// Render table
+function renderTable(tbodyId, samples, total, footerId) {
+  const tbody = document.getElementById(tbodyId);
+  if(!samples||!samples.length) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-cell">No rows in this category</td></tr>`;
+  } else {
+    tbody.innerHTML = samples.slice(0,50).map(r=>`
+      <tr>
+        <td class="td-name">${esc(r.student)}</td>
+        <td class="td-group">${esc(r.group)}</td>
+        <td class="td-exam">${esc(r.exam)}</td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById(footerId).textContent =
+    total>50 ? `Showing first 50 of ${fmt(total)} rows` : `Showing all ${fmt(total)} rows`;
+}
+
+// Main
+async function run() {
+  const runBtn = document.getElementById('runBtn');
+  const runText = document.getElementById('runText');
+  runBtn.disabled = true;
+  runText.innerHTML = '<span class="spinner"></span> Processing…';
+
+  document.getElementById('statusPanel').classList.add('active');
+  document.getElementById('statusBody').innerHTML = '';
+  document.getElementById('statusDot').className = 'status-dot';
+  document.getElementById('statusTitle').textContent = 'Processing…';
+  document.getElementById('results').classList.remove('active');
+  document.getElementById('errorBanner').classList.remove('active');
+  document.getElementById('insightCard').classList.remove('active');
+
+  // Reset tabs
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="matching"]').classList.add('active');
+  document.getElementById('tabMatching').classList.add('active');
+
+  try {
+    const ctxText = document.getElementById('contextPrompt').value.trim();
+    const ctx = interpretCtx(ctxText);
+
+    if(ctx.notes.length) ctx.notes.forEach(n=>addLine(n,true));
+    await yield_();
+
+    // Parse A
+    const lA = addLine(`Reading ${file1Name}…`);
+    await yield_();
+    const wb1 = XLSX.read(new Uint8Array(file1Buffer),{type:'array',cellDates:false,cellNF:false,cellStyles:false});
+    let data1=null, s1={format:'unknown'};
+    for(const sn of wb1.SheetNames) {
+      const d=XLSX.utils.sheet_to_json(wb1.Sheets[sn],{defval:null,header:1,blankrows:false});
+      const st=detect(d);
+      if(st.format!=='unknown') { data1=d; s1=st; break; }
+    }
+    if(!data1) { data1=XLSX.utils.sheet_to_json(wb1.Sheets[wb1.SheetNames[0]],{defval:null,header:1,blankrows:false}); s1=detect(data1); }
+    if(s1.format==='unknown') throw new Error('Could not detect format of '+file1Name+'. Expected student_name/group_name/mock_exam columns or " | " separated rows.');
+    markDone(lA);
+    addLine(`File A: ${s1.format.toUpperCase()} format · ${fmt(data1.length)} rows`,true);
+    await yield_();
+
+    // Parse B
+    const lB = addLine(`Reading ${file2Name}…`);
+    await yield_();
+    const wb2 = XLSX.read(new Uint8Array(file2Buffer),{type:'array',cellDates:false,cellNF:false,cellStyles:false});
+    let data2=null, s2={format:'unknown'};
+    for(const sn of wb2.SheetNames) {
+      const d=XLSX.utils.sheet_to_json(wb2.Sheets[sn],{defval:null,header:1,blankrows:false});
+      const st=detect(d);
+      if(st.format!=='unknown') { data2=d; s2=st; break; }
+    }
+    if(!data2) { data2=XLSX.utils.sheet_to_json(wb2.Sheets[wb2.SheetNames[0]],{defval:null,header:1,blankrows:false}); s2=detect(data2); }
+    if(s2.format==='unknown') throw new Error('Could not detect format of '+file2Name);
+    markDone(lB);
+    addLine(`File B: ${s2.format.toUpperCase()} format · ${fmt(data2.length)} rows`,true);
+    await yield_();
+
+    // Extract A
+    const lE1 = addLine(`Extracting & normalising File A…`);
+    await yield_();
+    const ext1 = await extract(data1, s1, ctx.strict, ctx.filter, (cur,tot)=>{
+      lE1.querySelector('span').textContent = `Extracting File A… ${((cur/tot)*100).toFixed(0)}%`;
+    });
+    data1=null;
+    markDone(lE1);
+    lE1.querySelector('span').textContent = `File A: ${fmt(ext1.count)} unique combos`;
+    await yield_();
+
+    // Extract B
+    const lE2 = addLine(`Extracting & normalising File B…`);
+    await yield_();
+    const ext2 = await extract(data2, s2, ctx.strict, null, (cur,tot)=>{
+      lE2.querySelector('span').textContent = `Extracting File B… ${((cur/tot)*100).toFixed(0)}%`;
+    });
+    data2=null;
+    markDone(lE2);
+    lE2.querySelector('span').textContent = `File B: ${fmt(ext2.count)} unique combos`;
+    await yield_();
+
+    // Match
+    const lM = addLine('Cross-matching…');
+    await yield_();
+    let matching=0, s1Only=0, s2Only=0;
+    const matchKeys=new Set(), s1Keys=new Set(), s2Keys=new Set();
+    let c=0;
+    for(const k of ext1.keySet) {
+      if(ext2.keySet.has(k)) { matching++; if(matchKeys.size<500) matchKeys.add(k); }
+      else { s1Only++; if(s1Keys.size<500) s1Keys.add(k); }
+      c++; if(c%5000===0) await yield_();
+    }
+    c=0;
+    for(const k of ext2.keySet) {
+      if(!ext1.keySet.has(k)) { s2Only++; if(s2Keys.size<500) s2Keys.add(k); }
+      c++; if(c%5000===0) await yield_();
+    }
+    markDone(lM);
+
+    const total = matching+s1Only+s2Only;
+    const rate = total>0 ? (matching/total*100) : 0;
+    addLine(`Done · ${rate.toFixed(1)}% match rate`,true);
+
+    await sleep(300);
+
+    // Render
+    const matchSamples = ext1.samples.filter(s=>matchKeys.has(s.key));
+    const s1Samples = ext1.samples.filter(s=>s1Keys.has(s.key));
+    const s2Samples = ext2.samples.filter(s=>s2Keys.has(s.key));
+
+    // Hero
+    const hr = document.getElementById('heroRate');
+    hr.innerHTML = rate.toFixed(1)+'<span class="pct">%</span>';
+    hr.className = 'hero-rate ' + (rate>=99.5?'success':rate>=75?'warning':'error');
+
+    const titles = {
+      success: ['Perfect sync.','Every row in File A has a match in File B and vice versa.'],
+      warning: ['Mostly aligned.','The majority of rows match — some differences found.'],
+      error: ['Significant mismatch.','Large portions of the data do not overlap between files.']
+    };
+    const tier = rate>=99.5?'success':rate>=75?'warning':'error';
+    document.getElementById('heroTitle').textContent = titles[tier][0];
+    document.getElementById('heroDesc').textContent = titles[tier][1];
+
+    // Stats
+    document.getElementById('statMatch').textContent = fmt(matching);
+    document.getElementById('statS1').textContent = fmt(s1Only);
+    document.getElementById('statS2').textContent = fmt(s2Only);
+    document.getElementById('statTotal').textContent = fmt(total);
+    document.getElementById('statS1Label').textContent = shortenName(file1Name)+' Only';
+    document.getElementById('statS2Label').textContent = shortenName(file2Name)+' Only';
+    document.getElementById('tabS1Label').textContent = shortenName(file1Name)+' Only';
+    document.getElementById('tabS2Label').textContent = shortenName(file2Name)+' Only';
+
+    // Bar
+    const mp=(matching/total*100), sp=(s1Only/total*100), s2p=(s2Only/total*100);
+    document.getElementById('barMatch').style.width=mp+'%';
+    document.getElementById('barS1').style.width=sp+'%';
+    document.getElementById('barS2').style.width=s2p+'%';
+    document.getElementById('legendMatch').textContent=`Matching · ${mp.toFixed(1)}% (${fmt(matching)})`;
+    document.getElementById('legendS1').textContent=`${shortenName(file1Name)} Only · ${sp.toFixed(1)}% (${fmt(s1Only)})`;
+    document.getElementById('legendS2').textContent=`${shortenName(file2Name)} Only · ${s2p.toFixed(1)}% (${fmt(s2Only)})`;
+
+    // Badges
+    document.getElementById('badgeMatch').textContent=fmt(matching);
+    document.getElementById('badgeS1').textContent=fmt(s1Only);
+    document.getElementById('badgeS2').textContent=fmt(s2Only);
+
+    // Insight
+    if(rate<95&&(s1Only>0||s2Only>0)) {
+      const ins = document.getElementById('insightCard');
+      const ratio = s1Only/Math.max(s2Only,1);
+      let msg = '';
+      if(ratio>0.7&&ratio<1.3&&s1Only>50)
+        msg=`Unmatched counts are nearly equal (<code>${fmt(s1Only)}</code> vs <code>${fmt(s2Only)}</code>) — likely the same students in different groups, or name spelling differences.`;
+      else if(s1Only>s2Only*2)
+        msg=`File A has far more unique rows (<code>${fmt(s1Only)}</code>) than File B (<code>${fmt(s2Only)}</code>) — File A may cover a broader scope or multiple programs.`;
+      else if(s2Only>s1Only*2)
+        msg=`File B has far more unique rows (<code>${fmt(s2Only)}</code>) than File A (<code>${fmt(s1Only)}</code>).`;
+      else
+        msg=`Non-matching rows likely reflect sparse test data — not every student took every exam.`;
+      document.getElementById('insightText').innerHTML=msg;
+      ins.classList.add('active');
+    }
+
+    // Tables
+    renderTable('bodyMatching', matchSamples, matching, 'footerMatching');
+    renderTable('bodyS1', s1Samples, s1Only, 'footerS1');
+    renderTable('bodyS2', s2Samples, s2Only, 'footerS2');
+
+    document.getElementById('results').classList.add('active');
+    document.getElementById('statusDot').className='status-dot done';
+    document.getElementById('statusTitle').textContent='Complete';
+    document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+
+    runText.textContent='Run Again';
+    runBtn.disabled=false;
+    document.getElementById('resetBtn').style.display='block';
+
+  } catch(err) {
+    console.error(err);
+    addLine('Error: '+err.message, false, true);
+    const b=document.getElementById('errorBanner');
+    b.textContent='⚠ '+err.message;
+    b.classList.add('active');
+    document.getElementById('statusDot').style.background='var(--error)';
+    document.getElementById('statusDot').style.animation='none';
+    document.getElementById('statusTitle').textContent='Error';
+    runText.textContent='Try Again';
+    runBtn.disabled=false;
+  }
+}
+
+function shortenName(s) {
+  if(!s) return '—';
+  s=s.replace(/\.(xlsx|xls)$/i,'');
+  return s.length>20?s.substring(0,18)+'…':s;
+}
+
+document.getElementById('runBtn').addEventListener('click', run);
+
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  file1Buffer=file2Buffer=null;
+  file1Name=file2Name='';
+
+  ['zone1','zone2'].forEach((id,i)=>{
+    const z=document.getElementById(id);
+    z.classList.remove('has-file','dragover');
+    document.getElementById('icon'+(i+1)).textContent='📂';
+    document.getElementById('title'+(i+1)).textContent='Drop file here';
+    document.getElementById('hint'+(i+1)).textContent='or click to browse · .xlsx';
+    document.getElementById('file'+(i+1)).value='';
+  });
+
+  document.getElementById('contextPrompt').value='';
+  document.getElementById('statusPanel').classList.remove('active');
+  document.getElementById('statusBody').innerHTML='';
+  document.getElementById('results').classList.remove('active');
+  document.getElementById('errorBanner').classList.remove('active');
+  document.getElementById('insightCard').classList.remove('active');
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('runText').textContent='Run Reconciliation';
+  document.getElementById('resetBtn').style.display='none';
+});
+
+window.addEventListener('error',e=>{ const b=document.getElementById('errorBanner'); b.textContent='⚠ '+e.message; b.classList.add('active'); });
+window.addEventListener('unhandledrejection',e=>{ const b=document.getElementById('errorBanner'); b.textContent='⚠ '+(e.reason&&e.reason.message||e.reason); b.classList.add('active'); });
+</script>
+</body>
+</html>
